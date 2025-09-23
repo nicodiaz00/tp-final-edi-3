@@ -10,6 +10,8 @@ CREATE TABLE Rol (
 CREATE TABLE Usuario (
     id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL,
+    apellido TEXT NOT NULL,
+    dni TEXT NOT NULL,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
     id_rol INTEGER NOT NULL,
