@@ -39,12 +39,17 @@ CREATE TABLE Producto (
 -- ==============================
 -- TABLAS DE PEDIDOS
 -- ==============================
-
+CREATE TABLE Estado (
+    id_estado INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre_estado TEXT NOT NULL UNIQUE
+);
 CREATE TABLE Pedido (
     id_pedido INTEGER PRIMARY KEY AUTOINCREMENT,
     monto_total REAL NOT NULL,
     fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     id_cliente INTEGER NOT NULL,
+    id_estado INTEGER NOT NULL DEFAULT 1,
+    FOREIGN KEY (id_estado) REFERENCES Estado(id_estado),
     FOREIGN KEY (id_cliente) REFERENCES Usuario(id_usuario)
 );
 
