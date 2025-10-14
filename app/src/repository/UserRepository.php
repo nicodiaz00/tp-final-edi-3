@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../core/database.php';
-require_once 'User.php';
+require_once __DIR__ . '/../models/User.php';
 
 class UserRepository {
 
@@ -16,6 +16,7 @@ class UserRepository {
     }
     public function addUser(array $data) {
     try {
+        error_log(print_r($data, true));
         $sql = "INSERT INTO Usuario (nombre, apellido, dni, email, password, id_rol)
                 VALUES (:nombre, :apellido, :dni, :email, :password, :id_rol)";
         
@@ -36,7 +37,7 @@ class UserRepository {
         return true;
 
     } catch (PDOException $e) {
-        
+         error_log("Error al agregar usuario: " . $e->getMessage());
         error_log("Error al agregar usuario: " . $e->getMessage());
 
         return false;
