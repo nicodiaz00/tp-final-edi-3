@@ -13,9 +13,7 @@ class UserService {
 
     public function __construct(UserRepository $userRepository) {
         $this->userRepository = $userRepository;
-        // Usamos $_ENV que es más fiable con la librería Dotenv.
         $secret = $_ENV['JWT_SECRET_KEY'] ?? null;
-
         if (!$secret) {
             throw new \RuntimeException("La clave secreta JWT no está configurada en el archivo .env");
         }
@@ -34,6 +32,8 @@ class UserService {
 
         // 2. Aplicar reglas de negocio (ej: rol por defecto)
         $data['id_rol'] = self::DEFAULT_ROLE_ID;
+        $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+
 
         // 3. Llamar al repositorio para la persistencia
         if ($this->userRepository->addUser($data)) {
@@ -79,11 +79,48 @@ class UserService {
         return ['status' => 'ok', 'token' => $token];
     }
 
+    public function updateUser(int $id, array $data) {
+        // 1. Verificar que el usuario exista
+        $user = $this->userRepository->getUserById($id);
+        if (!$user) {
+            return null; // O lanzar una excepción de "No encontrado"
+        }
+
+        // 2. Validar y limpiar los datos que se van a actualizar
+        $allowedFields = ['nombre', 'apellido', 'dni', 'email', 'password', 'id_rol'];
+        $updateData = array_intersect_key($data, array_flip($allowedFields));
+
+        if (empty($updateData)) {
+            throw new ValidationException("No se proporcionaron datos para actualizar.");
+        }
+
+        // 3. Aplicar lógica de negocio (ej: hashear contraseña)
+        if (isset($updateData['password'])) {
+            $updateData['password'] = password_hash($updateData['password'], PASSWORD_DEFAULT);
+        }
+
+        // 4. Llamar al repositorio
+        return $this->userRepository->updateUser($id, $updateData);
+    }
+
+    public function deleteUser(int $id) {
+        // 1. Lógica de negocio: Verificar que el usuario exista.
+        $user = $this->userRepository->getUserById($id);
+        if (!$user) {
+            // Devolvemos null para que el controlador sepa que no se encontró (y pueda dar un 404).
+            return null;
+        }
+
+        // 2. Llamar al repositorio para la persistencia.
+        return $this->userRepository->deleteUser($id); // Esto debería devolver true/false.
+    }
+
+
     public function getUserById($id) {
         return $this->userRepository->getUserById($id);
     }
 
     public function getAllUsers(){
-        return $this->userRepository->getAllusers();
+        return $this->userRepository->getAllUsers();
     }
 }

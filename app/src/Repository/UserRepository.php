@@ -1,6 +1,7 @@
 <?php
 namespace App\Repository;
 
+use App\Core\Exceptions\DuplicateEntryException;
 use App\Core\Database;
 use PDO;
 use PDOException;
@@ -25,24 +26,23 @@ class UserRepository {
         
         $stmt = $this->db->prepare($sql);
 
-        
-        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
-
         $stmt->execute([
             ':nombre' => $data['nombre'],
             ':apellido' => $data['apellido'],
             ':dni' => $data['dni'],
             ':email' => $data['email'],
-            ':password' => $hashedPassword,
+            ':password' => $data['password'], // Ya viene hasheada desde el servicio
             ':id_rol' => $data['id_rol']
         ]);
 
         return true;
 
     } catch (PDOException $e) {
-         error_log("Error al agregar usuario: " . $e->getMessage());
+        // El código de error '23000' es estándar para violaciones de integridad (como UNIQUE)
+        if ($e->getCode() == '23000') {
+            throw new DuplicateEntryException("El email o DNI ya se encuentra registrado.");
+        }
         error_log("Error al agregar usuario: " . $e->getMessage());
-
         return false;
         }
     }
@@ -91,27 +91,32 @@ class UserRepository {
 
     
     public function updateUser($id, array $data) {
+        // Si no hay datos para actualizar, no hacemos nada.
+        if (empty($data)) {
+            return true;
+        }
+
         try {
-            $sql = "UPDATE Usuario SET nombre=:nombre, apellido=:apellido, dni=:dni, email=:email, id_rol=:id_rol";
-
-            
-            if (!empty($data['password'])) {
-                $sql .= ", password=:password";
-                $data['password'] = password_hash($data['password'], PASSWORD_DEFAULT);
+            // 1. Construir la consulta dinámicamente para soportar actualizaciones parciales
+            $fields = [];
+            foreach (array_keys($data) as $field) {
+                $fields[] = "$field = :$field";
             }
+            $sql = "UPDATE Usuario SET " . implode(', ', $fields) . " WHERE id_usuario = :id";
 
-            $sql .= " WHERE id_usuario=:id";
             $stmt = $this->db->prepare($sql);
 
-            
+            // 2. Añadir el id al array de datos para el binding
             $data['id'] = $id;
 
-            $stmt->execute($data);
-            return ['status' => 'ok', 'message' => 'Usuario actualizado'];
-
+            // 3. Devolver un booleano simple para indicar éxito/fracaso
+            return $stmt->execute($data);
         } catch (PDOException $e) {
+            if ($e->getCode() == '23000') {
+                throw new DuplicateEntryException("El email o DNI ya se encuentra registrado.");
+            }
             error_log("Error al actualizar usuario: " . $e->getMessage());
-            return ['status' => 'error', 'message' => 'No se pudo actualizar el usuario'];
+            return false;
         }
     }
 
@@ -120,12 +125,12 @@ class UserRepository {
         try {
             $sql = "DELETE FROM Usuario WHERE id_usuario=:id";
             $stmt = $this->db->prepare($sql);
+            // execute() devuelve true en caso de éxito. Podemos comprobar también las filas afectadas.
             $stmt->execute([':id' => $id]);
-            return ['status' => 'ok', 'message' => 'Usuario eliminado'];
-
+            return $stmt->rowCount() > 0;
         } catch (PDOException $e) {
             error_log("Error al eliminar usuario: " . $e->getMessage());
-            return ['status' => 'error', 'message' => 'No se pudo eliminar el usuario'];
+            return false;
         }
     }
 
